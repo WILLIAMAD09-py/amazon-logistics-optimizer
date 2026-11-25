@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon Prime Logistics Optimizer | ACO vs PSO Monterrey</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet 1.9.4 CSS (CDN oficial cdnjs + respaldo local) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" />
+    
+    <!-- FontAwesome 6 Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <!-- Header / Navbar -->
+    <header class="navbar">
+        <div class="brand-container">
+            <i class="fa-brands fa-amazon brand-icon"></i>
+            <div>
+                <span class="brand-title">Amazon Logistics Optimizer</span>
+                <span class="brand-badge">Bio-Inspired AI Engine</span>
+            </div>
+        </div>
+
+        <div class="header-status">
+            <div class="status-pill" id="osm-status-pill">
+                <div class="status-indicator"></div>
+                <span id="osm-status-text">OpenStreetMap + Overpass API Activo</span>
+            </div>
+            <div class="status-pill">
+                <i class="fa-solid fa-location-dot" style="color: var(--amazon-orange);"></i>
+                <span>Monterrey, N.L. (Hub MTY-01)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container Grid -->
+    <main class="main-container">
+
+        <!-- Sidebar: Panel de Control e Hiperparámetros -->
+        <aside class="sidebar">
+
+            <!-- Algoritmo Activo -->
+            <div>
+                <div class="section-title">
+                    <i class="fa-solid fa-microchip"></i>
+                    <span>1. Algoritmo de Optimización</span>
+                </div>
+                <div class="algorithm-selector">
+                    <button class="algo-btn active" data-algo="both" onclick="setAlgorithm('both')">
+                        <i class="fa-solid fa-scale-balanced"></i> Ambos (Comp)
+                    </button>
+                    <button class="algo-btn" data-algo="aco" onclick="setAlgorithm('aco')">
+                        <i class="fa-solid fa-bugs"></i> ACO
+                    </button>
+                    <button class="algo-btn" data-algo="pso" onclick="setAlgorithm('pso')">
+                        <i class="fa-solid fa-dove"></i> PSO
+                    </button>
+                </div>
+            </div>
+
+            <!-- Objetivo de Enrutamiento -->
+            <div>
+                <div class="section-title">
+                    <i class="fa-solid fa-bullseye"></i>
+                    <span>2. Criterio de Enrutamiento</span>
+                </div>
+                <div class="objective-selector">
+                    <button class="obj-btn active" data-obj="distance" onclick="setObjective('distance')">
+                        <i class="fa-solid fa-route"></i> Distancia (km)
+                    </button>
+                    <button class="obj-btn" data-obj="time" onclick="setObjective('time')">
+                        <i class="fa-solid fa-clock"></i> Tiempo Tráfico (min)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Flota de Paquetes -->
+            <div class="card-control">
+                <div class="section-title">
+                    <i class="fa-solid fa-boxes-packing"></i>
+                    <span>3. Gestión de Paquetería</span>
+                </div>
+                <div class="slider-item">
+                    <div class="slider-header">
+                        <span>Paquetes a repartir:</span>
+                        <span class="slider-val" id="val-packages">10</span>
+                    </div>
+                    <input type="range" id="slider-packages" min="3" max="15" value="10" oninput="updatePackageCount(this.value)">
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                    <button class="btn-secondary" style="flex: 1;" onclick="toggleAddMode()" id="btn-add-mode">
+                        <i class="fa-solid fa-plus"></i> Clic en Mapa
+                    </button>
+                    <button class="btn-secondary" onclick="resetLocations()">
+                        <i class="fa-solid fa-rotate-left"></i> Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Hiperparámetros ACO -->
+            <div class="card-control" id="aco-params-panel">
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders" style="color: var(--amazon-orange);"></i>
+                    <span>Hiperparámetros ACO (Hormigas)</span>
+                </div>
+                <div class="slider-group">
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>α (Peso Feromona / Memoria):</span>
+                            <span class="slider-val" id="val-aco-alpha">1.0</span>
+                        </div>
+                        <input type="range" id="aco-alpha" min="0.1" max="5.0" step="0.1" value="1.0" oninput="syncVal('aco-alpha')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>β (Peso Visibilidad / Heurística):</span>
+                            <span class="slider-val" id="val-aco-beta">2.0</span>
+                        </div>
+                        <input type="range" id="aco-beta" min="0.5" max="8.0" step="0.5" value="2.0" oninput="syncVal('aco-beta')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>ρ (Tasa de Evaporación):</span>
+                            <span class="slider-val" id="val-aco-rho">0.10</span>
+                        </div>
+                        <input type="range" id="aco-rho" min="0.01" max="0.90" step="0.01" value="0.10" oninput="syncVal('aco-rho')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>Hormigas (Colonia m):</span>
+                            <span class="slider-val" id="val-aco-ants">25</span>
+                        </div>
+                        <input type="range" id="aco-ants" min="5" max="60" step="1" value="25" oninput="syncVal('aco-ants')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>Elitismo (Refuerzo Extra e):</span>
+                            <span class="slider-val" id="val-aco-elitism">3</span>
+                        </div>
+                        <input type="range" id="aco-elitism" min="0" max="10" step="1" value="3" oninput="syncVal('aco-elitism')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>Iteraciones ACO:</span>
+                            <span class="slider-val" id="val-aco-iter">100</span>
+                        </div>
+                        <input type="range" id="aco-iter" min="10" max="250" step="10" value="100" oninput="syncVal('aco-iter')">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hiperparámetros PSO -->
+            <div class="card-control" id="pso-params-panel">
+                <div class="section-title">
+                    <i class="fa-solid fa-sliders" style="color: var(--pso-cyan);"></i>
+                    <span>Hiperparámetros PSO (Partículas)</span>
+                </div>
+                <div class="slider-group">
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>n (Tamaño Enjambre):</span>
+                            <span class="slider-val" id="val-pso-particles">30</span>
+                        </div>
+                        <input type="range" class="pso-slider" id="pso-particles" min="5" max="80" step="1" value="30" oninput="syncVal('pso-particles')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>w (Inercia de Partícula):</span>
+                            <span class="slider-val" id="val-pso-w">0.72</span>
+                        </div>
+                        <input type="range" class="pso-slider" id="pso-w" min="0.10" max="1.20" step="0.02" value="0.72" oninput="syncVal('pso-w')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>c₁ (Factor Cognitivo / Memoria):</span>
+                            <span class="slider-val" id="val-pso-c1">1.49</span>
+                        </div>
+                        <input type="range" class="pso-slider" id="pso-c1" min="0.1" max="3.0" step="0.1" value="1.49" oninput="syncVal('pso-c1')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>c₂ (Factor Social / Enjambre):</span>
+                            <span class="slider-val" id="val-pso-c2">1.49</span>
+                        </div>
+                        <input type="range" class="pso-slider" id="pso-c2" min="0.1" max="3.0" step="0.1" value="1.49" oninput="syncVal('pso-c2')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>v_max (Límite de Velocidad):</span>
+                            <span class="slider-val" id="val-pso-vmax">4.0</span>
+                        </div>
+                        <input type="range" class="pso-slider" id="pso-vmax" min="1.0" max="10.0" step="0.5" value="4.0" oninput="syncVal('pso-vmax')">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-header">
+                            <span>Iteraciones PSO:</span>
+                            <span class="slider-val" id="val-pso-iter">100</span>
+                        </div>
+                        <input type="range" class="pso-slider" id="pso-iter" min="10" max="250" step="10" value="100" oninput="syncVal('pso-iter')">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botón Principal -->
+            <button class="btn-primary" id="btn-run-optimization" onclick="runOptimization()">
+                <i class="fa-solid fa-bolt"></i> Optimizar Reparto Amazon
+            </button>
+
+        </aside>
+
+        <!-- Content Area: Map, KPIs, Convergence & Itinerary -->
+        <section class="content-area">
+
+            <!-- KPI Cards Bar -->
+            <div class="kpi-bar">
+                <div class="kpi-card" id="kpi-dist-card">
+                    <span class="kpi-label">Distancia Total</span>
+                    <span class="kpi-value" id="kpi-dist">-- km</span>
+                    <span class="kpi-sub" id="kpi-dist-sub">Línea Base: -- km</span>
+                </div>
+
+                <div class="kpi-card" id="kpi-time-card">
+                    <span class="kpi-label">Tiempo Estimado</span>
+                    <span class="kpi-value" id="kpi-time">-- min</span>
+                    <span class="kpi-sub" id="kpi-time-sub">Tráfico en Calles OSM</span>
+                </div>
+
+                <div class="kpi-card green" id="kpi-savings-card">
+                    <span class="kpi-label">Ahorro Logístico</span>
+                    <span class="kpi-value" id="kpi-savings">--%</span>
+                    <span class="kpi-sub" id="kpi-savings-sub">vs. Enrutamiento Voraz</span>
+                </div>
+
+                <div class="kpi-card" id="kpi-fuel-card">
+                    <span class="kpi-label">Combustible / CO₂</span>
+                    <span class="kpi-value" id="kpi-fuel">-- L</span>
+                    <span class="kpi-sub" id="kpi-co2">-- kg CO₂ emitidos</span>
+                </div>
+
+                <div class="kpi-card" id="kpi-exec-card">
+                    <span class="kpi-label">Tiempo Cómputo</span>
+                    <span class="kpi-value" id="kpi-exec">-- ms</span>
+                    <span class="kpi-sub">Dijkstra + Bioinspirado</span>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="map-container">
+                <div id="map"></div>
+
+                <div class="map-floating-bar">
+                    <div class="floating-pill">
+                        <span class="badge-legend" style="background-color: var(--amazon-orange);"></span>
+                        <span>Ruta ACO</span>
+                    </div>
+                    <div class="floating-pill">
+                        <span class="badge-legend" style="background-color: var(--pso-cyan);"></span>
+                        <span>Ruta PSO</span>
+                    </div>
+                    <button class="btn-secondary" style="border-radius: 20px; padding: 6px 14px;" onclick="simulateVanMovement()" id="btn-van-sim">
+                        <i class="fa-solid fa-truck-fast" style="color: var(--amazon-orange);"></i> Simular Camioneta
+                    </button>
+                </div>
+            </div>
+
+            <!-- Details: Convergence Chart & Itinerary -->
+            <div class="details-grid">
+                <!-- Convergence Curve -->
+                <div class="chart-card">
+                    <div class="section-title">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span>Curva de Convergencia en Tiempo Real (Costo vs Iteración)</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="convergenceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Itinerary Street-by-Street -->
+                <div class="itinerary-card">
+                    <div class="section-title" style="display: flex; justify-content: space-between;">
+                        <div>
+                            <i class="fa-solid fa-list-check"></i>
+                            <span>Itinerario de Entrega en Calles Reales</span>
+                        </div>
+                        <span style="font-size: 0.75rem; color: var(--text-muted);" id="itinerary-count">0 Paradas</span>
+                    </div>
+                    <div class="itinerary-list" id="itinerary-list">
+                        <div style="text-align: center; color: var(--text-muted); padding: 30px 0;">
+                            Presiona <b>"Optimizar Reparto Amazon"</b> para generar el itinerario vial con Dijkstra.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Leaflet 1.9.4 JS (CDN oficial cdnjs con fallback local garantizado) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        if (typeof L === 'undefined') {
+            console.warn("Cargando respaldo local de Leaflet...");
+            document.write('<script src="/static/vendor/leaflet/leaflet.js"><\/script>');
+        }
+    </script>
+    
+    <!-- Chart.js para gráficos en vivo (CDN con respaldo local) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        if (typeof Chart === 'undefined') {
+            console.warn("Cargando respaldo local de Chart.js...");
+            document.write('<script src="/static/vendor/chart/chart.umd.min.js"><\/script>');
+        }
+    </script>
+
+    <!-- Custom JS -->
+    <script src="/static/js/app.js"></script>
+
+</body>
+</html>

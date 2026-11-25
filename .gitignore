@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.mpl_cache/
+test_app.py
+create_pia_report_docx.py
+generate_pia_figures.py
+*.docx
